@@ -33,10 +33,21 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField, Range(0, 1f)] private float _airDecelerationMultiplier = default;
 
     [Header("Jumping")]
+    [SerializeField] private float _jumpForce = default;
+    [SerializeField] private float _coyoteTime = default;
     [SerializeField] private float _jumpInputBufferTime = default;
     [SerializeField] private float _jumpHangTimeThreshold = default;
     [SerializeField] private float _jumpHangAccelerationMultiplier = default;
     [SerializeField] private float _jumpHangMaxSpeedMultiplier = default;
+
+    [Header("Gravity")]
+    [SerializeField] private float _gravityScale = default;
+    [SerializeField] private float _maxFallSpeed = default;
+    [SerializeField] private float _maxFastFallSpeed = default;
+    [SerializeField] private float _fallGravityMultiplier = default;
+    [SerializeField] private float _fastFallGravityMultiplier = default;
+    [SerializeField] private float _jumpCutGravityMultiplier = default;
+    [SerializeField] private float _jumpHangGravityMultiplier = default;
 
     [Header ("Checks")]
     [SerializeField] private Transform _groundCheckPoint = null;
@@ -56,12 +67,16 @@ public class PlayerMovement : MonoBehaviour
     private void Start()
     {
         IsFacingRight = true;
+        SetGravityScale(_gravityScale);
     }
 
     private void Update()
     {
-        HandleInput();
         UpdateTimers();
+        HandleInput();
+        GroundCheck();
+        JumpChecks();
+        GravityShifts();
     }
 
     private void FixedUpdate()
@@ -146,6 +161,114 @@ public class PlayerMovement : MonoBehaviour
     }
     #endregion
 
+    #region JUMP CHECKS
+
+    private void JumpChecks()
+    {
+        JumpingCheck();
+        JumpCutCheck();
+
+        if (CanJump() && LastPressedJumpTime > 0)
+        {
+            IsJumping = true;
+            IsJumpCut = false;
+            IsJumpFalling = false;
+            Jump();
+        }
+    }
+
+    private void JumpingCheck()
+    {
+        if (IsJumping && PlayerRigidbody2D.velocity.y < 0)
+        {
+            IsJumping = false;
+
+            IsJumpFalling = true;
+        }
+    }
+
+    private void JumpCutCheck()
+    {
+        if (LastOnGroundTime > 0 && !IsJumping)
+        {
+            IsJumpCut = false;
+            IsJumpFalling = false; // Logic failure in the original script?
+        }
+    }
+    #endregion
+
+    #region JUMP METHODS
+    private void Jump()
+    {
+        JumpResetTimers();
+
+        float force = _jumpForce;
+
+        if (PlayerRigidbody2D.velocity.y < 0)
+        {
+            force -= PlayerRigidbody2D.velocity.y; // To always jump the same amount.
+        }
+
+        PlayerRigidbody2D.AddForce(Vector2.up * force, ForceMode2D.Impulse);
+    }
+
+    private void JumpResetTimers()
+    {
+        LastPressedJumpTime = 0;
+        LastOnGroundTime = 0;
+    }
+    #endregion
+
+    #region GRAVITY
+
+    private void SetGravityScale(float gravityScale)
+    {
+        PlayerRigidbody2D.gravityScale = gravityScale;
+    }
+
+    private void GravityShifts()
+    {
+        // Make player fall faster if holding down S
+        if (PlayerRigidbody2D.velocity.y < 0 && _moveInput.y < 0) 
+        {
+            SetGravityScale(_gravityScale * _fastFallGravityMultiplier);
+            FallSpeedCap(_maxFastFallSpeed);
+        }
+
+        // Scale gravity up if jump button released
+        else if (IsJumpCut) 
+        {
+            SetGravityScale(_gravityScale * _jumpCutGravityMultiplier);
+            FallSpeedCap(_maxFallSpeed);
+        }
+
+        // Lower gravity when near jump height apex
+        else if ((IsJumping || IsJumpFalling) && Mathf.Abs(PlayerRigidbody2D.velocity.y) < _jumpHangTimeThreshold) 
+        {
+            SetGravityScale(_gravityScale * _jumpHangGravityMultiplier);
+        }
+
+        // Higher gravity if falling
+        else if (PlayerRigidbody2D.velocity.y < 0) 
+        {
+            SetGravityScale(_gravityScale * _fallGravityMultiplier);
+            FallSpeedCap(_gravityScale * _maxFallSpeed);
+        }
+
+        // Reset gravity
+        else
+        {
+            SetGravityScale(_gravityScale);
+        }
+    }
+
+    private void FallSpeedCap(float fallSpeedMaxValue)
+    {
+        PlayerRigidbody2D.velocity = new Vector2(PlayerRigidbody2D.velocity.x, Mathf.Max(PlayerRigidbody2D.velocity.y, -fallSpeedMaxValue));
+    }
+
+    #endregion
+
     #region INPUT CALLBACKS
     private void OnJumpInput()
     {
@@ -157,6 +280,16 @@ public class PlayerMovement : MonoBehaviour
         if (CanJumpCut())
         {
             IsJumpCut = true;
+        }
+    }
+    #endregion
+
+    #region COLLISION CHECKS
+    private void GroundCheck()
+    {
+        if (Physics2D.OverlapBox(_groundCheckPoint.position, _groundCheckSize, 0, _groundLayer) && !IsJumping)
+        {
+            LastOnGroundTime = _coyoteTime;
         }
     }
     #endregion
