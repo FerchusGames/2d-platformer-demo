@@ -14,8 +14,10 @@ public class PlayerMovement : MonoBehaviour
 {
     #region VARIABLES
     public Rigidbody2D PlayerRigidbody2D { get; private set; }
+    public Animator PlayerAnimator { get; private set; }
 
     // State Control
+    public bool IsDead { get; private set; }
     public bool IsFacingRight { get; private set; }
     public bool IsJumping { get; private set; }
     public bool IsJumpCut { get; private set; }
@@ -59,14 +61,25 @@ public class PlayerMovement : MonoBehaviour
     private Vector2 _moveInput = default;
     #endregion
 
+    #region ANIMATION HASHES
+    private int _ahIsDead = Animator.StringToHash("IsDead");
+    private int _ahIsJumping = Animator.StringToHash("IsJumping");
+    private int _ahMelee = Animator.StringToHash("Melee");
+    private int _ahShoot = Animator.StringToHash("Shoot");
+    private int _ahSpeed = Animator.StringToHash("Speed");
+    #endregion
+
     private void Awake()
     {
         PlayerRigidbody2D = GetComponent<Rigidbody2D>();
+        PlayerAnimator = GetComponent<Animator>();
+
     }
 
     private void Start()
     {
         IsFacingRight = true;
+        IsDead = false;
         SetGravityScale(_gravityScale);
     }
 
@@ -77,6 +90,7 @@ public class PlayerMovement : MonoBehaviour
         GroundCheck();
         JumpChecks();
         GravityShifts();
+        SetAnimatorParameters();
     }
 
     private void FixedUpdate()
@@ -306,9 +320,35 @@ public class PlayerMovement : MonoBehaviour
     }
     #endregion
 
+    #region ANIMATIONS
+    private void SetAnimatorParameters()
+    {
+        PlayerAnimator.SetFloat(_ahSpeed, Mathf.Abs(_moveInput.x));
+        PlayerAnimator.SetBool(_ahIsJumping, IsJumping || IsJumpFalling);
+
+        if (Input.GetKeyDown(KeyCode.F))
+        {
+            IsDead = !IsDead;
+            PlayerAnimator.SetBool(_ahIsDead, IsDead);
+        }
+
+        if (Input.GetKeyDown(KeyCode.Mouse0))
+        {
+            PlayerAnimator.SetTrigger(_ahShoot);
+        }
+
+        if (Input.GetKeyDown(KeyCode.Mouse1))
+        {
+            PlayerAnimator.SetTrigger(_ahMelee);
+        }
+    }
+    #endregion
+
+    #region TIMERS
     private void UpdateTimers()
     {
         LastOnGroundTime -= Time.deltaTime;
         LastPressedJumpTime -= Time.deltaTime;
     }
+    #endregion
 }
