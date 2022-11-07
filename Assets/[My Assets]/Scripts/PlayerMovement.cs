@@ -73,7 +73,6 @@ public class PlayerMovement : MonoBehaviour
     {
         PlayerRigidbody2D = GetComponent<Rigidbody2D>();
         PlayerAnimator = GetComponent<Animator>();
-
     }
 
     private void Start()
@@ -157,6 +156,7 @@ public class PlayerMovement : MonoBehaviour
 
         PlayerRigidbody2D.AddForce(movement * Vector2.right, ForceMode2D.Force);
     }
+
     private void CheckDirectionToFace(bool isMovingRight)
     {
         if (isMovingRight != IsFacingRight)
@@ -176,7 +176,6 @@ public class PlayerMovement : MonoBehaviour
     #endregion
 
     #region JUMP CHECKS
-
     private void JumpChecks()
     {
         JumpingCheck();
@@ -234,7 +233,6 @@ public class PlayerMovement : MonoBehaviour
     #endregion
 
     #region GRAVITY
-
     private void SetGravityScale(float gravityScale)
     {
         PlayerRigidbody2D.gravityScale = gravityScale;
@@ -256,7 +254,7 @@ public class PlayerMovement : MonoBehaviour
             FallSpeedCap(_maxFallSpeed);
         }
 
-        // Lower gravity when near jump height apex
+        // Higher gravity when near jump height apex
         else if ((IsJumping || IsJumpFalling) && Mathf.Abs(PlayerRigidbody2D.velocity.y) < _jumpHangTimeThreshold) 
         {
             SetGravityScale(_gravityScale * _jumpHangGravityMultiplier);
